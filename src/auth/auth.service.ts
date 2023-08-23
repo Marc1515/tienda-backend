@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { JwtService } from '@nestjs/jwt';
 
 import * as bcryptjs from 'bcryptjs';
 
@@ -13,10 +14,14 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
 import { User } from './entities/user.entity';
 import { LoginDto } from './dto/login.dto';
+import { JwtPayload } from './interfaces/jwt-payload';
 
 @Injectable()
 export class AuthService {
-  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<User>,
+    private jwtService: JwtService,
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     try {
@@ -28,6 +33,7 @@ export class AuthService {
       });
       /* return await newUser.save(); */
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password: _, ...user } = newUser.toJSON();
 
       return user;
@@ -54,11 +60,12 @@ export class AuthService {
     if (!bcryptjs.compareSync(password, user.password))
       throw new UnauthorizedException('Not valid creadentials - password');
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _, ...rest } = user.toJSON();
 
     return {
       user: rest,
-      token: 'ABC-123',
+      token: this.getJwtToken({ id: user.id }),
     };
   }
 
@@ -76,5 +83,10 @@ export class AuthService {
 
   remove(id: number) {
     return `This action removes a #${id} auth`;
+  }
+
+  getJwtToken(payload: JwtPayload) {
+    const token = this.jwtService.sign(payload);
+    return token;
   }
 }
